@@ -1,0 +1,35 @@
+Test udev code to get system attributes to uniquely identify endpoint 83 on the Aquaero 5
+
+On my system this produces:
+
+Device Node Path: /dev/hidraw0
+  VID/PID: 0c70 f001
+  Aqua Computer GmbH & Co. KG
+  aquaero 5
+  serial: XXXXX-YYYYY
+  interface: aquaero Keyboard/Mouse
+Device Node Path: /dev/hidraw1
+  VID/PID: 0c70 f001
+  Aqua Computer GmbH & Co. KG
+  aquaero 5
+  serial: XXXXX-YYYYY
+  interface: aquaero System Control
+Device Node Path: /dev/hidraw2
+  VID/PID: 0c70 f001
+  Aqua Computer GmbH & Co. KG
+  aquaero 5
+  serial: XXXXX-YYYYY
+  interface: aquaero Device
+Device Node Path: /dev/hidraw3
+  VID/PID: 0557 2213
+  ATEN
+  CS-1734A V1.3.121
+  serial: (null)
+  interface: Kb
+Device Node Path: /dev/hidraw4
+  VID/PID: 0557 2213
+  ATEN
+  CS-1734A V1.3.121
+  serial: (null)
+  interface: (null)
+

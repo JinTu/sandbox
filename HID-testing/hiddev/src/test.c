@@ -406,16 +406,18 @@ static void showReports(int fd, unsigned report_type)
 				/* fetch the value from report */
 				ioctl(fd, HIDIOCGUSAGE, &uref);
 
-				/* 
- 				printf(" >> usage_index=%u usage_code=0x%X (%s) value=%d\n",
+				/*
+ 				printf(" >> usage_index=%u usage_code=0x%X value=%d\n",
 				uref.usage_index,
 				uref.usage_code,
-				controlName(uref.usage_code),
 				uref.value);
 				*/
+				/* printf("%d\n",uref.value); */
+				
 				if (((j) % 16 == 0 )) printf("%08X  ", j);
 				printf("%02X ", uref.value);
 				if((j+1) % 16 == 0 ) printf( "\n" );
+				
 			}
 		}
 		printf("\n");
