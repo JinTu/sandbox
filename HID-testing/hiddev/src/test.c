@@ -228,14 +228,19 @@ int main (int argc, char *argv[])
 		ioctl(fd, HIDIOCGSTRING, &hStr);
 		printf("Found '%s'\n", hStr.value);
 
+		/* Initing all feature and input reports */
+		printf("Initing all input and feature reports.\n");
+		if (ioctl(fd, HIDIOCINITREPORT, 0) < 0)
+			printf("Failed to init reports!\n");
+
 		/* Method 1 */
 		printf("\n*** FEATURE:\n"); showReports(fd, HID_REPORT_TYPE_FEATURE);
 		printf("\n*** INPUT:\n"); showReports(fd, HID_REPORT_TYPE_INPUT);
-		/* no point in reading putputs since they are just 0 for all values */
-		/* printf("\n*** INPUT:\n"); showReports(fd, HID_REPORT_TYPE_OUTPUT); */
+		/* no point in reading outputs since they are just 0 for all values */
+		/* printf("\n*** OUTPUT:\n"); showReports(fd, HID_REPORT_TYPE_OUTPUT); */
 		
 		/* Method 2 (Doesn't work on my systems) */
-		bytes = hiddev_get_feature_report(fd, 8, buffer, REPORT_INPUT_LEN);
+		bytes = hiddev_get_feature_report(fd, 0xB, buffer, REPORT_INPUT_LEN);
         
 		if (bytes <= 0)
 		{
@@ -394,6 +399,10 @@ static void showReports(int fd, unsigned report_type)
 				finfo.physical, finfo.logical, finfo.application,
 				finfo.logical_minimum,  finfo.logical_maximum,
 				finfo.physical_minimum, finfo.physical_maximum, finfo.report_type);
+
+			if(ioctl(fd, HIDIOCGREPORT, &rinfo) != 0) {
+				fprintf(stderr, "Failed to HIDIOCGREPORT for report %d\n", finfo.report_id);
+			}
 
 			for (j = 0; j < finfo.maxusage; j++)
 			{
