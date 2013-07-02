@@ -21,6 +21,7 @@
  * 
  */
 
+static void hiddev_set_report(int fd, unsigned report_type, int report_id, unsigned char *buffer);
 int hiddev_get_feature_report(int fd, int report_id, unsigned char *buffer, int length);
 
 /* prints out every printable byte from a buffer.

@@ -198,18 +198,21 @@ c0 (end collection)
 #define REPORT	11
 /* #define REPORT_INPUT_LEN	2247 */
 #define REPORT_INPUT_LEN	32768
+#define REPORT_OUTPUT_LEN	16
 
 
 int main (int argc, char *argv[]) 
 {
 	int fd, bytes;
 	unsigned char *buffer = (unsigned char*)malloc(REPORT_INPUT_LEN);
+	unsigned char *o_buffer = (unsigned char*)malloc(REPORT_OUTPUT_LEN);
 	struct hiddev_devinfo dinfo;
 	struct hiddev_string_descriptor hStr;
 	u_int32_t version;
 	
 	/* Open our device */
-	fd = open("/dev/usb/hiddev0", O_RDONLY);
+	/* fd = open("/dev/usb/hiddev0", O_RDONLY); */
+	fd = open("/dev/usb/hiddev0", O_RDWR);
 
 	if (fd < 0) {
 		printf("Sorry, cannot open device for reading!\n");
@@ -239,6 +242,26 @@ int main (int argc, char *argv[])
 		/* no point in reading outputs since they are just 0 for all values */
 		/* printf("\n*** OUTPUT:\n"); showReports(fd, HID_REPORT_TYPE_OUTPUT); */
 		
+		/* Lets set some values in the buffer */
+		o_buffer[0] = 0x08;
+		o_buffer[1] = 0x98;
+		o_buffer[2] = 0x7f;
+		o_buffer[3] = 0xff;
+		o_buffer[4] = 0x7f;
+		o_buffer[5] = 0xff;
+		o_buffer[6] = 0x7f;
+		o_buffer[7] = 0xff;
+		o_buffer[8] = 0x7f;
+		o_buffer[9] = 0xff;
+		o_buffer[10] = 0x7f;
+		o_buffer[11] = 0xff;
+		o_buffer[12] = 0x7f;
+		o_buffer[13] = 0xff;
+		o_buffer[14] = 0x7f;
+		o_buffer[15] = 0xff;
+
+		printf("\n*** Setting output report:\n"); hiddev_set_report(fd, HID_REPORT_TYPE_OUTPUT, 0x7, o_buffer);
+
 		/* Method 2 (Doesn't work on my systems) */
 		bytes = hiddev_get_feature_report(fd, 0xB, buffer, REPORT_INPUT_LEN);
         
@@ -256,6 +279,95 @@ int main (int argc, char *argv[])
 	} else {
 		return -1;
 	} 
+}
+
+static void hiddev_set_report(int fd, unsigned report_type, int report_id, unsigned char *buffer)
+{
+	struct hiddev_report_info rinfo;
+	struct hiddev_field_info finfo;
+	struct hiddev_usage_ref uref;
+	int i;
+
+	/* find the requested usage code */
+	uref.report_type = report_type;
+	uref.report_id   = report_id;
+	uref.field_index = 0;
+	uref.usage_index = 0;
+	/* fetch the usage code for given indexes */
+	if (ioctl(fd, HIDIOCGUCODE, &uref) < 0)
+	{
+		printf("Oops! HIDIOCGUCODE failed!\n");
+		return;
+
+	}
+
+	/* uref.usage_code  = (0x82 << 16) | code; */
+	if (ioctl(fd, HIDIOCGUSAGE, &uref) < 0)
+	{
+		printf("Oops! HIDIOCGUSAGE failed!\n");
+		return;
+	}
+
+	printf(" >> usage_index=%u usage_code=0x%X value=%d\n",
+		uref.usage_index,
+		uref.usage_code,
+		uref.value);
+
+	/* retrieve field info */
+	finfo.report_type = uref.report_type;
+	finfo.report_id   = uref.report_id;
+	finfo.field_index = uref.field_index;
+	if (ioctl(fd, HIDIOCGFIELDINFO, &finfo) < 0)
+	{
+		printf("Oops! HIDIOCGFIELDINFO failed!\n");
+		return;
+	}
+
+	printf("HIDIOCGFIELDINFO: field_index=%u maxusage=%u flags=0x%X\n"
+ 		"\tphysical=0x%X logical=0x%X application=0x%X\n"
+		"\tlogical_minimum=%d,maximum=%d physical_minimum=%d,maximum=%d\n",
+		finfo.field_index, finfo.maxusage, finfo.flags,
+		finfo.physical, finfo.logical, finfo.application,
+		finfo.logical_minimum,  finfo.logical_maximum,
+		finfo.physical_minimum, finfo.physical_maximum);
+
+	/* set values */
+	for(i=0; i<finfo.maxusage; i++) {
+		uref.report_type = finfo.report_type;
+		uref.report_id   = finfo.report_id;
+		uref.field_index = 0;
+		uref.usage_index = i;
+		/* check limits */
+		/* TODO: are the logical limits the ones we want to check against? */
+		if ((buffer[i] < finfo.logical_minimum) || (buffer[i] > finfo.logical_maximum))
+		{
+			printf("%d: value %d outside of allowed range (%d-%d)\n",
+				uref.usage_code, buffer[i],
+				finfo.logical_minimum,  finfo.logical_maximum);
+			return;
+		}
+		uref.value = (__s32)buffer[i];
+		/* set the value from report */
+		if (ioctl(fd, HIDIOCSUSAGE, &uref) < 0) {
+			printf("Oops! HIDIOCSUSAGE failed!\n");
+			return;
+		}
+	}
+
+	printf("Sending the following in the report:\n");
+	debug_buffer_hex(buffer, REPORT_OUTPUT_LEN);
+
+	printf("HIDIOCSUSAGE\n");
+
+	rinfo.report_type = uref.report_type;
+	rinfo.report_id   = uref.report_id;
+	rinfo.num_fields = 1;
+	if (ioctl(fd, HIDIOCSREPORT, &rinfo) < 0)
+	{
+		printf("Oops! HIDIOCSREPORT failed\n");
+		return;
+	}
+	printf("HIDIOCSREPORT\n");
 }
 
 int hiddev_get_feature_report(int fd, int report_id, unsigned char *buffer, int length)
