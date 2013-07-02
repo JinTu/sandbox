@@ -211,8 +211,8 @@ int main (int argc, char *argv[])
 	u_int32_t version;
 	
 	/* Open our device */
-	/* fd = open("/dev/usb/hiddev0", O_RDONLY); */
-	fd = open("/dev/usb/hiddev0", O_RDWR);
+	fd = open("/dev/usb/hiddev0", O_RDONLY);
+	/* fd = open("/dev/usb/hiddev0", O_RDWR); */
 
 	if (fd < 0) {
 		printf("Sorry, cannot open device for reading!\n");
