@@ -243,7 +243,7 @@ int main (int argc, char *argv[])
 		
 		/* Lets set some values in the buffer */
 		for (int i=0; i<REPORT_OUTPUT_LEN; i+=2) {
-			set_uint16(o_buffer, 0, 0x7fff);
+			set_uint16(o_buffer, i, 0x7fff);
 		}
 		/* software sensor 1 */
 		set_uint16(o_buffer, 0, 0x0898);
