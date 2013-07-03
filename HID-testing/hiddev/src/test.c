@@ -212,7 +212,6 @@ int main (int argc, char *argv[])
 	
 	/* Open our device */
 	fd = open("/dev/usb/hiddev0", O_RDONLY);
-	/* fd = open("/dev/usb/hiddev0", O_RDWR); */
 
 	if (fd < 0) {
 		printf("Sorry, cannot open device for reading!\n");
@@ -243,22 +242,13 @@ int main (int argc, char *argv[])
 		/* printf("\n*** OUTPUT:\n"); showReports(fd, HID_REPORT_TYPE_OUTPUT); */
 		
 		/* Lets set some values in the buffer */
-		o_buffer[0] = 0x08;
-		o_buffer[1] = 0x98;
-		o_buffer[2] = 0x7f;
-		o_buffer[3] = 0xff;
-		o_buffer[4] = 0x7f;
-		o_buffer[5] = 0xff;
-		o_buffer[6] = 0x7f;
-		o_buffer[7] = 0xff;
-		o_buffer[8] = 0x7f;
-		o_buffer[9] = 0xff;
-		o_buffer[10] = 0x7f;
-		o_buffer[11] = 0xff;
-		o_buffer[12] = 0x7f;
-		o_buffer[13] = 0xff;
-		o_buffer[14] = 0x7f;
-		o_buffer[15] = 0xff;
+		for (int i=0; i<REPORT_OUTPUT_LEN; i+=2) {
+			set_uint16(o_buffer, 0, 0x7fff);
+		}
+		/* software sensor 1 */
+		set_uint16(o_buffer, 0, 0x0898);
+		/* software sensor 2 */
+		set_uint16(o_buffer, 2, 2222);
 
 		printf("\n*** Setting output report:\n"); hiddev_set_report(fd, HID_REPORT_TYPE_OUTPUT, 0x7, o_buffer);
 
@@ -279,6 +269,12 @@ int main (int argc, char *argv[])
 	} else {
 		return -1;
 	} 
+}
+
+static void set_uint16(unsigned char *buffer, short offset, uint16_t val)
+{
+	buffer[offset] = val >> 8;
+	buffer[offset + 1] = val;
 }
 
 static void hiddev_set_report(int fd, unsigned report_type, int report_id, unsigned char *buffer)
