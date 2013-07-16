@@ -199,16 +199,184 @@ c0 (end collection)
 /* #define REPORT_INPUT_LEN	2247 */
 #define REPORT_INPUT_LEN	32768
 #define REPORT_OUTPUT_LEN	16
+#define REPORT_NAME_LEN		523
+#define REPORT_SETTINGS_LEN	2427
+#define CLEAN_NAME_LEN		4096
 
+inline uint16_t aq5_get_int16(unsigned char *buffer, short offset)
+{
+	return (uint16_t)((buffer[offset] << 8) | buffer[offset + 1]);
+}
+
+inline int check_and_strip_name_report_watermarks(unsigned char *dirtybuffer, unsigned char *cleanbuffer)
+{
+	typedef struct {
+		uint16_t offset;
+		uint16_t value;
+	} name_report_watermark;
+
+	name_report_watermark* watermarks = malloc(6 * 8 * sizeof(name_report_watermark)); 
+	/* 1 
+ 	 * start 0x0000: 01 00 09 c0 00 00 00 02 00
+ 	 * end 0x0209: DD 83
+ 	 */
+	watermarks[0].offset = 0x0000;
+	watermarks[0].value = 0x0100;
+	watermarks[1].offset = 0x0002;
+	watermarks[1].value = 0x09c0;
+	watermarks[2].offset = 0x0004;
+	watermarks[2].value = 0x0000;
+	watermarks[3].offset = 0x0006;
+	watermarks[3].value = 0x0002;
+	watermarks[4].offset = 0x0007;
+	watermarks[4].value = 0x0200;
+	watermarks[5].offset = 0x0209;
+	watermarks[5].value = 0xdd83;
+
+	/* 2
+ 	 * start 0x020b: 01 00 09 C2 00 00 00 02 00
+ 	 * end 0x0414: DD 84
+ 	 */ 
+	watermarks[6].offset = 0x020b;
+	watermarks[6].value = 0x0100;
+	watermarks[7].offset = 0x020d;
+	watermarks[7].value = 0x09c2;
+	watermarks[8].offset = 0x020f;
+	watermarks[8].value = 0x0000;
+	watermarks[9].offset = 0x0211;
+	watermarks[9].value = 0x0002;
+	watermarks[10].offset = 0x0212;
+	watermarks[10].value = 0x0200;
+	watermarks[11].offset = 0x0414;
+	watermarks[11].value = 0xdd84;
+
+	/* 3
+ 	 * start 0x0416: 01 00 09 C4 00 00 00 02 00
+ 	 * end 0x061f: DD 85
+  	 */
+	watermarks[12].offset = 0x0416;
+	watermarks[12].value = 0x0100;
+	watermarks[13].offset = 0x0418;
+	watermarks[13].value = 0x09c4;
+	watermarks[14].offset = 0x041a;
+	watermarks[14].value = 0x0000;
+	watermarks[15].offset = 0x041c;
+	watermarks[15].value = 0x0002;
+	watermarks[16].offset = 0x041d;
+	watermarks[16].value = 0x0200;
+	watermarks[17].offset = 0x061f;
+	watermarks[17].value = 0xdd85;
+
+	/* 4
+ 	 * start 0x0621: 01 00 09 C6 00 00 00 02 00
+ 	 * end 0x082a: DD 86
+ 	 */
+	watermarks[18].offset = 0x0621;
+	watermarks[18].value = 0x0100;
+	watermarks[19].offset = 0x0623;
+	watermarks[19].value = 0x09c6;
+	watermarks[20].offset = 0x0625;
+	watermarks[20].value = 0x0000;
+	watermarks[21].offset = 0x0627;
+	watermarks[21].value = 0x0002;
+	watermarks[22].offset = 0x0628;
+	watermarks[22].value = 0x0200;
+	watermarks[23].offset = 0x082a;
+	watermarks[23].value = 0xdd86;
+
+	/* 5
+ 	 * start 0x082c: 01 00 09 C8 00 00 00 02 00
+ 	 * end 0x0a35: DD 87
+ 	 */
+	watermarks[24].offset = 0x082c;
+	watermarks[24].value = 0x0100;
+	watermarks[25].offset = 0x082e;
+	watermarks[25].value = 0x09c8;
+	watermarks[26].offset = 0x0830;
+	watermarks[26].value = 0x0000;
+	watermarks[27].offset = 0x0832;
+	watermarks[27].value = 0x0002;
+	watermarks[28].offset = 0x0833;
+	watermarks[28].value = 0x0200;
+	watermarks[29].offset = 0x0a35;
+	watermarks[29].value = 0xdd87;
+
+	/* 6
+ 	 * start 0x0a37: 01 00 09 CA 00 00 00 02 00
+ 	 * end 0x0c40: DD 88
+ 	 */
+	watermarks[30].offset = 0x0a37;
+	watermarks[30].value = 0x0100;
+	watermarks[31].offset = 0x0a39;
+	watermarks[31].value = 0x09ca;
+	watermarks[32].offset = 0x0a3b;
+	watermarks[32].value = 0x0000;
+	watermarks[33].offset = 0x0a3d;
+	watermarks[33].value = 0x0002;
+	watermarks[34].offset = 0x0a3e;
+	watermarks[34].value = 0x0200;
+	watermarks[35].offset = 0x0c40;
+	watermarks[35].value = 0xdd88;
+
+	/* 7
+ 	 * start 0x0c42: 01 00 09 CC 00 00 00 02 00
+ 	 * end 0x0e4b: DD 89
+ 	 */
+	watermarks[36].offset = 0x0c42;
+	watermarks[36].value = 0x0100;
+	watermarks[37].offset = 0x0c44;
+	watermarks[37].value = 0x09cc;
+	watermarks[38].offset = 0x0c46;
+	watermarks[38].value = 0x0000;
+	watermarks[39].offset = 0x0c48;
+	watermarks[39].value = 0x0002;
+	watermarks[40].offset = 0x0c49;
+	watermarks[40].value = 0x0200;
+	watermarks[41].offset = 0x0e4b;
+	watermarks[41].value = 0xdd89;
+
+	/* 8
+ 	 * start 0x0e4d: 01 00 09 CE 00 00 00 02 00
+ 	 * end 0x1056 : DD 8A
+ 	 */
+	watermarks[42].offset = 0x0e4d;
+	watermarks[42].value = 0x0100;
+	watermarks[43].offset = 0x0e4f;
+	watermarks[43].value = 0x09ce;
+	watermarks[44].offset = 0x0e51;
+	watermarks[44].value = 0x0000;
+	watermarks[45].offset = 0x0e53;
+	watermarks[45].value = 0x0002;
+	watermarks[46].offset = 0x0e54;
+	watermarks[46].value = 0x0200;
+	watermarks[47].offset = 0x1056;
+	watermarks[47].value = 0xdd8a;
+
+	for (int i=0; i<48; i++) {
+		if (aq5_get_int16(dirtybuffer, watermarks[i].offset) != watermarks[i].value) {
+			printf("Oops watermark at offset %02X is %02X (index %d), but should be %02X!\n", watermarks[i].offset, aq5_get_int16(dirtybuffer, watermarks[i].offset), i, watermarks[i].value);
+			return -1;
+		} else {
+			/* printf("i=%d\n",i); */
+		}
+	}
+	/* cleanbuffer = dirtybuffer; */
+	return 0;
+}
 
 int main (int argc, char *argv[]) 
 {
 	int fd, bytes;
 	unsigned char *buffer = (unsigned char*)malloc(REPORT_INPUT_LEN);
 	unsigned char *o_buffer = (unsigned char*)malloc(REPORT_OUTPUT_LEN);
+	unsigned char *name_buffer = (unsigned char*)malloc(REPORT_NAME_LEN);
+	unsigned char *rname_buffer = (unsigned char*)malloc(REPORT_NAME_LEN);
+	unsigned char *settings_buffer = (unsigned char*)malloc(REPORT_SETTINGS_LEN);
+	unsigned char *clean_name_buffer = (unsigned char*)malloc(CLEAN_NAME_LEN);
 	struct hiddev_devinfo dinfo;
 	struct hiddev_string_descriptor hStr;
 	u_int32_t version;
+	int flag = HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT;
 	
 	/* Open our device */
 	fd = open("/dev/usb/hiddev0", O_RDONLY);
@@ -216,6 +384,12 @@ int main (int argc, char *argv[])
 	if (fd < 0) {
 		printf("Sorry, cannot open device for reading!\n");
 		return -1;
+	}
+
+	/* Change the default behavior of read() to yeild hiddev_usage_ref instead */
+	if (ioctl(fd, HIDIOCSFLAG, &flag) != 0) {
+		printf("Oops, HIDIOCSFLAG failed!\n");
+		exit(1);
 	}
 
 	ioctl(fd, HIDIOCGVERSION, &version);
@@ -240,7 +414,22 @@ int main (int argc, char *argv[])
 		printf("\n*** INPUT:\n"); showReports(fd, HID_REPORT_TYPE_INPUT);
 		/* no point in reading outputs since they are just 0 for all values */
 		/* printf("\n*** OUTPUT:\n"); showReports(fd, HID_REPORT_TYPE_OUTPUT); */
-		
+
+		/* Method 2 (Doesn't work on my 2.6 system) */
+		/*
+		bytes = hiddev_get_feature_report(fd, 0xB, buffer, REPORT_INPUT_LEN);
+        
+		if (bytes <= 0)
+		{
+			free(buffer);
+			printf("Oops, this report provided no data!\n");
+		} else {
+			printf("Success running hiddev_get_feature_report!\n");
+			debug_buffer_hex(buffer, REPORT_INPUT_LEN);
+		}	
+		return 0;	
+		*/
+
 		/* Lets set some values in the buffer */
 		for (int i=0; i<REPORT_OUTPUT_LEN; i+=2) {
 			set_uint16(o_buffer, i, 0x7fff);
@@ -251,21 +440,55 @@ int main (int argc, char *argv[])
 		set_uint16(o_buffer, 2, 2222);
 
 		printf("\n*** Setting output report:\n"); hiddev_set_report(fd, HID_REPORT_TYPE_OUTPUT, 0x7, o_buffer);
+		/* usleep (1000); */
 
-		/* Method 2 (Doesn't work on my systems) */
-		bytes = hiddev_get_feature_report(fd, 0xB, buffer, REPORT_INPUT_LEN);
-        
-		if (bytes <= 0)
-		{
-			free(buffer);
-			printf("Oops, this report provided no data!\n");
-			close(fd);
-			return -1;
-		} else {
-			debug_buffer_hex(buffer, REPORT_INPUT_LEN);
-			close(fd);
-			return 0;
+		/* Send report 0x09, then read back report 0x0c 8x for all the device names */
+		for (int i=0; i<31; i++) {
+			printf("Attempt %d\n", i);
+			printf("Sending the following request in report 0x9:\n");
+			/* Define the report 9 request */
+			/* We need to ensure that the buffer is initialized with 0s for each attempt */
+			for (int j=0; j<REPORT_NAME_LEN; j++) {
+				rname_buffer[j] = 0;
+			}
+			
+			for (int j=0; j<(REPORT_NAME_LEN * 8); j++) {
+				name_buffer[j] = 0;
+			}
+			set_uint16(rname_buffer, 0, 0x0100);
+			set_uint16(rname_buffer, 2, 0x09c0);
+			set_uint16(rname_buffer, 4, 0x0000);
+			set_uint16(rname_buffer, 6, 0x0010);
+			set_uint16(rname_buffer, REPORT_NAME_LEN - 2, 0xdd82);
+			/*
+			printf("Here is the report 9 before sending:\n");
+			debug_buffer_hex(rname_buffer, REPORT_NAME_LEN); */
+			hiddev_set_report(fd, HID_REPORT_TYPE_OUTPUT, 0x9, rname_buffer);
+			/* usleep(2); */
+	
+			printf("\n\n** getting the 8x 0xC reports:\n");
+			interruptRead(fd, 0xff000001, name_buffer, REPORT_NAME_LEN * 8);
+			if (check_and_strip_name_report_watermarks(name_buffer, clean_name_buffer) == 0) {
+				printf("watermarks match!\n");
+				break;
+			} else {
+				if (i == 30) {
+					printf("Doh! Failed for the %dth time, bailing out\n", i);
+					return -1;
+				} else {
+					printf("Trying again...\n");
+					/* usleep(25000); */
+				}
+			}
 		}
+		/* for (int i=0; i<8; i++) {
+			printf("\n%d:\n", i+1); */
+		/*	showReport(fd, HID_REPORT_TYPE_INPUT, 0xC, name_buffer); */
+		/*	interruptRead(fd, 0xff000001, REPORT_NAME_LEN);
+		} */
+
+		return 0;
+
 	} else {
 		return -1;
 	} 
@@ -328,6 +551,7 @@ static void hiddev_set_report(int fd, unsigned report_type, int report_id, unsig
 		finfo.physical_minimum, finfo.physical_maximum);
 
 	/* set values */
+	printf("Sending the following in the report:\n");
 	for(i=0; i<finfo.maxusage; i++) {
 		uref.report_type = finfo.report_type;
 		uref.report_id   = finfo.report_id;
@@ -348,10 +572,10 @@ static void hiddev_set_report(int fd, unsigned report_type, int report_id, unsig
 			printf("Oops! HIDIOCSUSAGE failed!\n");
 			return;
 		}
+		if (((i) % 16 == 0 )) printf("%08X  ", i);
+		printf("%02X ", (__s32)buffer[i]);
+		if((i+1) % 16 == 0 ) printf( "\n" );
 	}
-
-	printf("Sending the following in the report:\n");
-	debug_buffer_hex(buffer, REPORT_OUTPUT_LEN);
 
 	printf("HIDIOCSUSAGE\n");
 
@@ -371,6 +595,7 @@ int hiddev_get_feature_report(int fd, int report_id, unsigned char *buffer, int 
 	struct hiddev_report_info rinfo;
 	struct hiddev_field_info finfo;
   	struct hiddev_usage_ref_multi ref_multi_i;
+	struct hiddev_usage_ref uref;
 	int ret, report_length, i;
 
 	finfo.report_type = HID_REPORT_TYPE_FEATURE;
@@ -544,3 +769,176 @@ static void showReports(int fd, unsigned report_type)
 	}
 }
 
+
+static void showReport(int fd, unsigned report_type, int report_id, unsigned char *buffer)
+{
+	struct hiddev_report_info rinfo;
+	struct hiddev_field_info finfo;
+	struct hiddev_usage_ref uref;
+	int j, ret;
+
+	rinfo.report_type = report_type;
+	rinfo.report_id = report_id;
+	rinfo.num_fields = 1;
+	ret = ioctl(fd, HIDIOCGREPORTINFO, &rinfo);
+		printf("HIDIOCGREPORTINFO: report_id=0x%X (%u fields)\n",
+			rinfo.report_id, rinfo.num_fields);
+			finfo.report_type = rinfo.report_type;
+			finfo.report_id   = rinfo.report_id;
+			finfo.field_index = 0;
+			ioctl(fd, HIDIOCGFIELDINFO, &finfo);
+
+			printf("HIDIOCGFIELDINFO: field_index=%u maxusage=%u flags=0x%X\n"
+				"\tphysical=0x%X logical=0x%X application=0x%X\n"
+				"\tlogical_minimum=%d,maximum=%d physical_minimum=%d,maximum=%d,type=%u\n",
+				finfo.field_index, finfo.maxusage, finfo.flags,
+				finfo.physical, finfo.logical, finfo.application,
+				finfo.logical_minimum,  finfo.logical_maximum,
+				finfo.physical_minimum, finfo.physical_maximum, finfo.report_type);
+
+			if(ioctl(fd, HIDIOCGREPORT, &rinfo) != 0) {
+				fprintf(stderr, "Failed to HIDIOCGREPORT for report %d\n", finfo.report_id);
+			}
+
+			for (j = 0; j < finfo.maxusage; j++)
+			{
+				uref.report_type = finfo.report_type;
+				uref.report_id   = finfo.report_id;
+				uref.field_index = 0;
+				uref.usage_index = j;
+				/* fetch the usage code for given indexes */
+				ioctl(fd, HIDIOCGUCODE, &uref);
+				/* fetch the value from report */
+				ioctl(fd, HIDIOCGUSAGE, &uref);
+
+				/*
+ 				printf(" >> usage_index=%u usage_code=0x%X value=%d\n",
+				uref.usage_index,
+				uref.usage_code,
+				uref.value);
+				*/
+				/* printf("%d\n",uref.value); */
+				
+				if (((j) % 16 == 0 )) printf("%08X  ", j);
+				printf("%02X ", uref.value);
+				if((j+1) % 16 == 0 ) printf( "\n" );
+				
+			}
+		printf("\n");
+}
+
+/* Dumb read function for doing interrupt reads */
+static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
+{
+	struct hiddev_usage_ref uref;
+	struct hiddev_usage_ref muref[523];
+	int i = 0;
+	int j = 0;
+	int wrong_reports = 0;
+	int flag = HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT;
+
+	while(read(fd, &uref, sizeof(struct hiddev_usage_ref)) > 0) {
+		if (uref.report_id == 0xc) {
+			/*if (uref.field_index == HID_FIELD_INDEX_NONE) { */
+				printf("A new report is available. Fetching...\n");
+				printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
+				if (uref.usage_index != 0) {
+					printf("Something is messed up with hiddev right now (uref.usage_index != 0). Attempting reset...\n");
+					close(fd);
+					
+					/* Open our device */
+					printf("Reopening the device.\n");
+					fd = open("/dev/usb/hiddev0", O_RDONLY);
+					if (fd < 0) {
+						printf("Sorry, cannot open device for reading!\n");
+						exit(1);
+					}
+					/* Change the default behavior of read() to yeild hiddev_usage_ref instead */
+					if (ioctl(fd, HIDIOCSFLAG, &flag) != 0) {
+						printf("Oops, HIDIOCSFLAG failed!\n");
+						exit(1);
+					}
+
+					/* Initing all feature and input reports */
+					printf("Initing all input and feature reports.\n");
+					if (ioctl(fd, HIDIOCINITREPORT, 0) < 0)
+						printf("Failed to init reports!\n");
+
+					/* fsync(fd); */
+					/* for (int a=0; a<9; a++) {
+						showReport(fd, HID_REPORT_TYPE_INPUT, 0xC, NULL);
+						usleep(10000);
+					}
+					*/
+					break;
+				}
+				/* Read the whole report in quickly */
+				/* read(fd, &muref, sizeof(struct hiddev_usage_ref)*523); */
+				if (read(fd, &muref, sizeof(struct hiddev_usage_ref) * 523) > 0) { 
+					for (j = 0; j<523; j++) {
+						/* uref.field_index = 0;
+						uref.usage_index = j;
+						ioctl(fd, HIDIOCGUCODE, &uref);
+						ioctl(fd, HIDIOCGUSAGE, &uref); */
+						if (muref[j].report_id != 0xc) {
+							printf("We got something other than report 0xC. Breaking and starting over\n");
+							i--;
+							break;
+						}
+						buffer[(i*523)+j] = muref[muref[j].usage_index].value;
+						/* printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d, j=%d, arrayindex=%d\n", muref[j].report_type, muref[j].report_id, muref[j].field_index, muref[j].usage_index, muref[j].usage_code, muref[j].value, i, j, (i*523)+j); */
+					}
+
+					if (i == 7) {
+						printf("Last array index was %d\n", (i*523)+j);
+						break;
+					}
+					i++;
+				} else {
+					printf("Epic read() failure!\n");
+					break;
+				}
+					
+			/* } */
+
+			/*	
+			printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
+			buffer[i] = uref.value;
+			if (i == (len - 1)) {
+				break;
+			}
+			i++;
+			*/
+		} else {
+			/* printf("skipping report %02X\n", uref.report_id); */
+			if (wrong_reports > 659 ) {
+				printf("Too many wrong reports read (%d)! Last array index was %d. Bailing out.\n", wrong_reports, (i*523)+j);
+				break;
+			}
+			wrong_reports++;
+		}
+	}
+
+	/*
+	struct hiddev_event ev;
+	int i = 0;
+	while(read(fd, &ev, sizeof(struct hiddev_event)) == sizeof(struct hiddev_event)) {
+
+	*/
+		/* printf("EV: PARAM %x : %02X\n", ev[i].hid, ev[i].value); */
+	/*	if (hid != ev.hid) {
+			printf("Oops! We were expecting hid %x and received %x instead!\n", hid, ev.hid);
+
+		}
+		buffer[i] = ev.value;
+
+		if (((i) % 16 == 0 )) printf("%08X  ", i);
+		printf("%02X ", ev.value);
+		if((i+1) % 16 == 0 ) printf( "\n" );
+		if (i == (len - 1)) {
+			break;
+		}
+		i++;
+	}
+	*/
+}
