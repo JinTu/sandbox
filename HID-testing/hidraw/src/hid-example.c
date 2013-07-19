@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/input.h>
 #include <linux/hidraw.h>
-
+#include <linux/hiddev.h>
 /*
  * Ugly hack to work around failing compilation on systems that don't
  * yet populate new version of hidraw.h to userspace.
@@ -39,6 +39,7 @@
 #include <errno.h>
 
 const char *bus_str(int bus);
+static void showReports(int fd, unsigned report_type);
 
 int main(int argc, char **argv)
 {
@@ -107,8 +108,12 @@ int main(int argc, char **argv)
 		printf("\tproduct: 0x%04hx\n", info.product);
 	}
 
+	/* Get the feature reports (hiddev method) */
+	printf("\n*** FEATURE:\n"); showReports(fd, HID_REPORT_TYPE_FEATURE);
+	printf("\n*** INPUT:\n"); showReports(fd, HID_REPORT_TYPE_INPUT);
+
 	/* Get Feature */
-	buf[0] = 0x9; /* Report Number */
+	buf[0] = 0xB; /* Report Number */
 	res = ioctl(fd, HIDIOCGFEATURE(256), buf);
 	if (res < 0) {
 		perror("HIDIOCGFEATURE");
@@ -156,3 +161,65 @@ bus_str(int bus)
 		break;
 	}
 }
+
+static void showReports(int fd, unsigned report_type)
+{
+        struct hiddev_report_info rinfo;
+        struct hiddev_field_info finfo;
+        struct hiddev_usage_ref uref;
+        int i, j, ret;
+
+        rinfo.report_type = report_type;
+        rinfo.report_id = HID_REPORT_ID_FIRST;
+        ret = ioctl(fd, HIDIOCGREPORTINFO, &rinfo);
+        while (ret >= 0)
+        {
+                printf("HIDIOCGREPORTINFO: report_id=0x%X (%u fields)\n",
+                        rinfo.report_id, rinfo.num_fields);
+                for (i = 0; i < rinfo.num_fields; i++)
+                {
+                        finfo.report_type = rinfo.report_type;
+                        finfo.report_id   = rinfo.report_id;
+                        finfo.field_index = i;
+                        ioctl(fd, HIDIOCGFIELDINFO, &finfo);
+
+                        printf("HIDIOCGFIELDINFO: field_index=%u maxusage=%u flags=0x%X\n"
+                                "\tphysical=0x%X logical=0x%X application=0x%X\n"
+                                "\tlogical_minimum=%d,maximum=%d physical_minimum=%d,maximum=%d,type=%u\n",
+                                finfo.field_index, finfo.maxusage, finfo.flags,
+                                finfo.physical, finfo.logical, finfo.application,
+                                finfo.logical_minimum,  finfo.logical_maximum,
+                                finfo.physical_minimum, finfo.physical_maximum, finfo.report_type);
+
+                        for (j = 0; j < finfo.maxusage; j++)
+                        {
+                                uref.report_type = finfo.report_type;
+                                uref.report_id   = finfo.report_id;
+                                uref.field_index = i;
+                                uref.usage_index = j;
+                                /* fetch the usage code for given indexes */
+                                ioctl(fd, HIDIOCGUCODE, &uref);
+                                /* fetch the value from report */
+                                ioctl(fd, HIDIOCGUSAGE, &uref);
+
+                               	/*
+                              	printf(" >> usage_index=%u usage_code=0x%X value=%d\n",
+                              	uref.usage_index,
+                              	uref.usage_code,
+                               	uref.value);
+				*/
+                                /* printf("%d\n",uref.value); */
+
+                                if (((j) % 16 == 0 )) printf("%08X  ", j);
+                                printf("%02X ", uref.value);
+                                if((j+1) % 16 == 0 ) printf( "\n" );
+
+                        }
+                }
+                printf("\n");
+
+                rinfo.report_id |= HID_REPORT_ID_NEXT;
+                ret = ioctl(fd, HIDIOCGREPORTINFO, &rinfo);
+        }
+}
+

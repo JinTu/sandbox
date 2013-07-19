@@ -3,7 +3,7 @@
 date1=$(date +"%s")
 rm test-output.txt
 
-for i in {1..500}
+for i in {1..1000}
 do
   echo "Iteration $i"
   echo "Iteration $i" >>test-output.txt

@@ -360,7 +360,14 @@ inline int check_and_strip_name_report_watermarks(unsigned char *dirtybuffer, un
 			/* printf("i=%d\n",i); */
 		}
 	}
-	/* cleanbuffer = dirtybuffer; */
+
+	/* Initialize cleanbuffer */
+	memset(cleanbuffer, 0, 8 * 512 * sizeof(char));
+
+	for (int i=0; i<8; i++) {
+		memcpy(cleanbuffer + (512 * i), dirtybuffer + 9 + (i * 523), 512 * sizeof(char));
+	}
+
 	return 0;
 }
 
@@ -369,7 +376,7 @@ int main (int argc, char *argv[])
 	int fd, bytes;
 	unsigned char *buffer = (unsigned char*)malloc(REPORT_INPUT_LEN);
 	unsigned char *o_buffer = (unsigned char*)malloc(REPORT_OUTPUT_LEN);
-	unsigned char *name_buffer = (unsigned char*)malloc(REPORT_NAME_LEN);
+	unsigned char *name_buffer = (unsigned char*)malloc(REPORT_NAME_LEN * 8);
 	unsigned char *rname_buffer = (unsigned char*)malloc(REPORT_NAME_LEN);
 	unsigned char *settings_buffer = (unsigned char*)malloc(REPORT_SETTINGS_LEN);
 	unsigned char *clean_name_buffer = (unsigned char*)malloc(CLEAN_NAME_LEN);
@@ -377,7 +384,15 @@ int main (int argc, char *argv[])
 	struct hiddev_string_descriptor hStr;
 	u_int32_t version;
 	int flag = HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT;
-	
+/*	typedef struct {
+		char 	*device_string;
+		char	*id;
+	} device_name_t;	
+	device_name_t device_names[180];
+*/
+	char **device_names;
+	device_names = malloc(181 * sizeof(char*));
+
 	/* Open our device */
 	fd = open("/dev/usb/hiddev0", O_RDONLY);
 
@@ -470,6 +485,29 @@ int main (int argc, char *argv[])
 			interruptRead(fd, 0xff000001, name_buffer, REPORT_NAME_LEN * 8);
 			if (check_and_strip_name_report_watermarks(name_buffer, clean_name_buffer) == 0) {
 				printf("watermarks match!\n");
+				for (int j=0; j<CLEAN_NAME_LEN; j++) {
+					if (((j) % 16 == 0 )) printf("%08X  ", j);
+					printf("%02X ", clean_name_buffer[j]);
+					if((j+1) % 16 == 0 ) printf( "\n" );
+				}
+				for (int j=0; j<181; j++) {
+					device_names[j] = malloc(23 * sizeof(char));
+					/* Copy the non 0 values to the array */
+					for (int a=0; a<23; a++) {
+						if (a == 22) {
+							strncpy(device_names[j] + a, "\0", sizeof(char));
+							break;
+						}
+						else {
+							if (clean_name_buffer[(j * 22) + a] != 0) {
+								strncpy(device_names[j] + a, clean_name_buffer + (j * 22) + a, sizeof(char));
+							} else {
+								strncpy(device_names[j] + a, "\0", sizeof(char));
+								break;
+							}
+						}
+					}
+				}
 				break;
 			} else {
 				if (i == 30) {
@@ -480,6 +518,11 @@ int main (int argc, char *argv[])
 					/* usleep(25000); */
 				}
 			}
+		}
+
+		printf("Printing device names...\n");
+		for (int j=0; j<181; j++) {
+			printf("%d:%s (%d bytes)\n", j, device_names[j], (int)strlen(device_names[j]));
 		}
 		/* for (int i=0; i<8; i++) {
 			printf("\n%d:\n", i+1); */
