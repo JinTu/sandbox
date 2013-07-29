@@ -215,142 +215,88 @@ inline int check_and_strip_name_report_watermarks(unsigned char *dirtybuffer, un
 		uint16_t value;
 	} name_report_watermark;
 
-	name_report_watermark* watermarks = malloc(6 * 8 * sizeof(name_report_watermark)); 
-	/* 1 
- 	 * start 0x0000: 01 00 09 c0 00 00 00 02 00
- 	 * end 0x0209: DD 83
- 	 */
-	watermarks[0].offset = 0x0000;
-	watermarks[0].value = 0x0100;
-	watermarks[1].offset = 0x0002;
-	watermarks[1].value = 0x09c0;
-	watermarks[2].offset = 0x0004;
-	watermarks[2].value = 0x0000;
-	watermarks[3].offset = 0x0006;
-	watermarks[3].value = 0x0002;
-	watermarks[4].offset = 0x0007;
-	watermarks[4].value = 0x0200;
-	watermarks[5].offset = 0x0209;
-	watermarks[5].value = 0xdd83;
-
-	/* 2
- 	 * start 0x020b: 01 00 09 C2 00 00 00 02 00
- 	 * end 0x0414: DD 84
- 	 */ 
-	watermarks[6].offset = 0x020b;
-	watermarks[6].value = 0x0100;
-	watermarks[7].offset = 0x020d;
-	watermarks[7].value = 0x09c2;
-	watermarks[8].offset = 0x020f;
-	watermarks[8].value = 0x0000;
-	watermarks[9].offset = 0x0211;
-	watermarks[9].value = 0x0002;
-	watermarks[10].offset = 0x0212;
-	watermarks[10].value = 0x0200;
-	watermarks[11].offset = 0x0414;
-	watermarks[11].value = 0xdd84;
-
-	/* 3
- 	 * start 0x0416: 01 00 09 C4 00 00 00 02 00
- 	 * end 0x061f: DD 85
-  	 */
-	watermarks[12].offset = 0x0416;
-	watermarks[12].value = 0x0100;
-	watermarks[13].offset = 0x0418;
-	watermarks[13].value = 0x09c4;
-	watermarks[14].offset = 0x041a;
-	watermarks[14].value = 0x0000;
-	watermarks[15].offset = 0x041c;
-	watermarks[15].value = 0x0002;
-	watermarks[16].offset = 0x041d;
-	watermarks[16].value = 0x0200;
-	watermarks[17].offset = 0x061f;
-	watermarks[17].value = 0xdd85;
-
-	/* 4
- 	 * start 0x0621: 01 00 09 C6 00 00 00 02 00
- 	 * end 0x082a: DD 86
- 	 */
-	watermarks[18].offset = 0x0621;
-	watermarks[18].value = 0x0100;
-	watermarks[19].offset = 0x0623;
-	watermarks[19].value = 0x09c6;
-	watermarks[20].offset = 0x0625;
-	watermarks[20].value = 0x0000;
-	watermarks[21].offset = 0x0627;
-	watermarks[21].value = 0x0002;
-	watermarks[22].offset = 0x0628;
-	watermarks[22].value = 0x0200;
-	watermarks[23].offset = 0x082a;
-	watermarks[23].value = 0xdd86;
-
-	/* 5
- 	 * start 0x082c: 01 00 09 C8 00 00 00 02 00
- 	 * end 0x0a35: DD 87
- 	 */
-	watermarks[24].offset = 0x082c;
-	watermarks[24].value = 0x0100;
-	watermarks[25].offset = 0x082e;
-	watermarks[25].value = 0x09c8;
-	watermarks[26].offset = 0x0830;
-	watermarks[26].value = 0x0000;
-	watermarks[27].offset = 0x0832;
-	watermarks[27].value = 0x0002;
-	watermarks[28].offset = 0x0833;
-	watermarks[28].value = 0x0200;
-	watermarks[29].offset = 0x0a35;
-	watermarks[29].value = 0xdd87;
-
-	/* 6
- 	 * start 0x0a37: 01 00 09 CA 00 00 00 02 00
- 	 * end 0x0c40: DD 88
- 	 */
-	watermarks[30].offset = 0x0a37;
-	watermarks[30].value = 0x0100;
-	watermarks[31].offset = 0x0a39;
-	watermarks[31].value = 0x09ca;
-	watermarks[32].offset = 0x0a3b;
-	watermarks[32].value = 0x0000;
-	watermarks[33].offset = 0x0a3d;
-	watermarks[33].value = 0x0002;
-	watermarks[34].offset = 0x0a3e;
-	watermarks[34].value = 0x0200;
-	watermarks[35].offset = 0x0c40;
-	watermarks[35].value = 0xdd88;
-
-	/* 7
- 	 * start 0x0c42: 01 00 09 CC 00 00 00 02 00
- 	 * end 0x0e4b: DD 89
- 	 */
-	watermarks[36].offset = 0x0c42;
-	watermarks[36].value = 0x0100;
-	watermarks[37].offset = 0x0c44;
-	watermarks[37].value = 0x09cc;
-	watermarks[38].offset = 0x0c46;
-	watermarks[38].value = 0x0000;
-	watermarks[39].offset = 0x0c48;
-	watermarks[39].value = 0x0002;
-	watermarks[40].offset = 0x0c49;
-	watermarks[40].value = 0x0200;
-	watermarks[41].offset = 0x0e4b;
-	watermarks[41].value = 0xdd89;
-
-	/* 8
- 	 * start 0x0e4d: 01 00 09 CE 00 00 00 02 00
- 	 * end 0x1056 : DD 8A
- 	 */
-	watermarks[42].offset = 0x0e4d;
-	watermarks[42].value = 0x0100;
-	watermarks[43].offset = 0x0e4f;
-	watermarks[43].value = 0x09ce;
-	watermarks[44].offset = 0x0e51;
-	watermarks[44].value = 0x0000;
-	watermarks[45].offset = 0x0e53;
-	watermarks[45].value = 0x0002;
-	watermarks[46].offset = 0x0e54;
-	watermarks[46].value = 0x0200;
-	watermarks[47].offset = 0x1056;
-	watermarks[47].value = 0xdd8a;
+	name_report_watermark watermarks[] = {
+		/* 1 
+ 	 	* start 0x0000: 01 00 09 c0 00 00 00 02 00
+ 	 	* end 0x0209: DD 83
+ 	 	*/
+		{ 0x0000,	0x0100 },
+		{ 0x0002,	0x09c0 },
+		{ 0x0004,	0x0000 },
+		{ 0x0006,	0x0002 },
+		{ 0x0007,	0x0200 },
+		{ 0x0209,	0xdd83 },
+		/* 2
+ 	 	* start 0x020b: 01 00 09 C2 00 00 00 02 00
+ 	 	* end 0x0414: DD 84
+ 	 	*/
+		{ 0x020b,	0x0100 },
+		{ 0x020d,	0x09c2 },
+		{ 0x020f,	0x0000 },
+		{ 0x0211,	0x0002 },
+		{ 0x0212,	0x0200 },
+		{ 0x0414,	0xdd84 },
+		/* 3
+ 	 	* start 0x0416: 01 00 09 C4 00 00 00 02 00
+ 	 	* end 0x061f: DD 85
+  	 	*/
+		{ 0x0416,	0x0100 },
+		{ 0x0418,	0x09c4 },
+		{ 0x041a,	0x0000 },
+		{ 0x041c,	0x0002 },
+		{ 0x041d,	0x0200 },
+		{ 0x061f,	0xdd85 },
+		/* 4
+ 	 	* start 0x0621: 01 00 09 C6 00 00 00 02 00
+ 	 	* end 0x082a: DD 86
+ 	 	*/
+		{ 0x0621,	0x0100 },
+		{ 0x0623,	0x09c6 },
+		{ 0x0625,	0x0000 },
+		{ 0x0627,	0x0002 },
+		{ 0x0628,	0x0200 },
+		{ 0x082a,	0xdd86 },
+		/* 5
+ 		 * start 0x082c: 01 00 09 C8 00 00 00 02 00
+ 		 * end 0x0a35: DD 87
+ 		 */
+		{ 0x082c,	0x0100 },
+		{ 0x082e,	0x09c8 },
+		{ 0x0830,	0x0000 },
+		{ 0x0832,	0x0002 },
+		{ 0x0833,	0x0200 },
+		{ 0x0a35,	0xdd87 },
+		/* 6
+ 		 * start 0x0a37: 01 00 09 CA 00 00 00 02 00
+ 		 * end 0x0c40: DD 88
+ 		 */
+		{ 0x0a37,	0x0100 },
+		{ 0x0a39,	0x09ca },
+		{ 0x0a3b,	0x0000 },
+		{ 0x0a3d,	0x0002 },
+		{ 0x0a3e,	0x0200 },
+		{ 0x0c40,	0xdd88 },
+		/* 7
+ 		 * start 0x0c42: 01 00 09 CC 00 00 00 02 00
+ 		 * end 0x0e4b: DD 89
+ 		 */
+		{ 0x0c42,	0x0100 },
+		{ 0x0c44,	0x09cc },
+		{ 0x0c46,	0x0000 },
+		{ 0x0c48,	0x0002 },
+		{ 0x0c49,	0x0200 },
+		{ 0x0e4b,	0xdd89 },
+		/* 8
+ 		 * start 0x0e4d: 01 00 09 CE 00 00 00 02 00
+ 		 * end 0x1056 : DD 8A
+ 		 */
+		{ 0x0e4d,	0x0100 },
+		{ 0x0e4f,	0x09ce },
+		{ 0x0e51,	0x0000 },
+		{ 0x0e53,	0x0002 },
+		{ 0x0e54,	0x0200 },
+		{ 0x1056, 	0xdd8a }
+	};
 
 	for (int i=0; i<48; i++) {
 		if (aq5_get_int16(dirtybuffer, watermarks[i].offset) != watermarks[i].value) {
@@ -500,7 +446,7 @@ int main (int argc, char *argv[])
 						}
 						else {
 							if (clean_name_buffer[(j * 22) + a] != 0) {
-								strncpy(device_names[j] + a, clean_name_buffer + (j * 22) + a, sizeof(char));
+								strncpy(device_names[j] + a, (const char *)clean_name_buffer + (j * 22) + a, sizeof(char));
 							} else {
 								strncpy(device_names[j] + a, "\0", sizeof(char));
 								break;
