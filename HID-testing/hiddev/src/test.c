@@ -443,7 +443,8 @@ int main (int argc, char *argv[])
 			hiddev_set_report(fd, HID_REPORT_TYPE_OUTPUT, 0x9, rname_buffer);
 	
 			printf("\n\n** getting the 8x 0xC reports:\n");
-			interruptRead(fd, 0xff000001, name_buffer, REPORT_NAME_LEN * 8);
+			/* interruptRead(fd, 0xff000001, name_buffer, REPORT_NAME_LEN * 8); */
+			interruptRead(fd, 0xc, name_buffer, 523, 8);
 			if (check_and_strip_name_report_watermarks(name_buffer, clean_name_buffer) == 0) {
 				printf("watermarks match!\n");
 				for (int j=0; j<CLEAN_NAME_LEN; j++) {
@@ -824,16 +825,17 @@ static void showReport(int fd, unsigned report_type, int report_id, unsigned cha
 }
 
 /* Dumb read function for doing interrupt reads */
-static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
+/* static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len) */
+static void interruptRead(int fd, int report_id, unsigned char *buffer, int len, int count)
 {
 	struct hiddev_usage_ref uref;
-	struct hiddev_usage_ref muref[523];
+	struct hiddev_usage_ref muref[len];
 	int i = 0;
 	int j = 0;
 	int wrong_reports = 0;
 
 	while(read(fd, &uref, sizeof(struct hiddev_usage_ref)) > 0) {
-		if (uref.report_id == 0xc) {
+		if (uref.report_id == report_id) {
 				printf("A new report is available. Fetching...\n");
 				printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
 				if (uref.usage_index != 0) {
@@ -855,19 +857,19 @@ static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
 					break;
 				}
 				/* Read the whole report in quickly */
-				if (read(fd, &muref, sizeof(struct hiddev_usage_ref) * 523) > 0) { 
-					for (j = 0; j<523; j++) {
-						if (muref[j].report_id != 0xc) {
+				if (read(fd, &muref, sizeof(struct hiddev_usage_ref) * len) > 0) { 
+					for (j = 0; j<len; j++) {
+						if (muref[j].report_id != report_id) {
 							printf("We got something other than report 0xC. Breaking and starting over\n");
 							i--;
 							break;
 						}
-						buffer[(i*523)+j] = muref[muref[j].usage_index].value;
+						buffer[(i*len)+j] = muref[muref[j].usage_index].value;
 						/* printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d, j=%d, arrayindex=%d\n", muref[j].report_type, muref[j].report_id, muref[j].field_index, muref[j].usage_index, muref[j].usage_code, muref[j].value, i, j, (i*523)+j); */
 					}
 
-					if (i == 7) {
-						printf("Last array index was %d\n", (i*523)+j);
+					if (i == (count - 1)) {
+						printf("Last array index was %d\n", (i*len)+j);
 						break;
 					}
 					i++;
@@ -878,7 +880,7 @@ static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
 		} else {
 			/* printf("skipping report %02X\n", uref.report_id); */
 			if (wrong_reports > 659 ) {
-				printf("Too many wrong reports read (%d)! Last array index was %d. Bailing out.\n", wrong_reports, (i*523)+j);
+				printf("Too many wrong reports read (%d)! Last array index was %d. Bailing out.\n", wrong_reports, (i*len)+j);
 				break;
 			}
 			wrong_reports++;

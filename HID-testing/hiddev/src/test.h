@@ -108,6 +108,6 @@ static void showReports(int fd, unsigned report_type);
 static void showReport(int fd, unsigned report_type, int report_id, unsigned char *buffer);
 
 /* Do an interrupt read */
-static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len);
+static void interruptRead(int fd, int report_id, unsigned char *buffer, int len, int count);
 
 #endif
