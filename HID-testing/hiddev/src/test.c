@@ -203,6 +203,9 @@ c0 (end collection)
 #define REPORT_SETTINGS_LEN	2427
 #define CLEAN_NAME_LEN		4096
 
+int fd = -1;
+
+
 inline uint16_t aq5_get_int16(unsigned char *buffer, short offset)
 {
 	return (uint16_t)((buffer[offset] << 8) | buffer[offset + 1]);
@@ -295,7 +298,7 @@ inline int check_and_strip_name_report_watermarks(unsigned char *dirtybuffer, un
 		{ 0x0e51,	0x0000 },
 		{ 0x0e53,	0x0002 },
 		{ 0x0e54,	0x0200 },
-		{ 0x1056, 	0xdd8a }
+		{ 0x1056,	0xdd8a }
 	};
 
 	for (int i=0; i<48; i++) {
@@ -317,30 +320,19 @@ inline int check_and_strip_name_report_watermarks(unsigned char *dirtybuffer, un
 	return 0;
 }
 
-int main (int argc, char *argv[]) 
+/* Open the device */
+inline int aq5_open(char *device)
 {
-	int fd, bytes;
-	unsigned char *buffer = (unsigned char*)malloc(REPORT_INPUT_LEN);
-	unsigned char *o_buffer = (unsigned char*)malloc(REPORT_OUTPUT_LEN);
-	unsigned char *name_buffer = (unsigned char*)malloc(REPORT_NAME_LEN * 8);
-	unsigned char *rname_buffer = (unsigned char*)malloc(REPORT_NAME_LEN);
-	unsigned char *settings_buffer = (unsigned char*)malloc(REPORT_SETTINGS_LEN);
-	unsigned char *clean_name_buffer = (unsigned char*)malloc(CLEAN_NAME_LEN);
-	struct hiddev_devinfo dinfo;
-	struct hiddev_string_descriptor hStr;
-	u_int32_t version;
 	int flag = HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT;
-/*	typedef struct {
-		char 	*device_string;
-		char	*id;
-	} device_name_t;	
-	device_name_t device_names[180];
-*/
-	char **device_names;
-	device_names = malloc(181 * sizeof(char*));
+
+	/* Only open the device if we need to */
+	if (fcntl(fd, F_GETFL) != -1) {
+		/* The file handle is already defined and open, just continue */
+		return 0;
+	}
 
 	/* Open our device */
-	fd = open("/dev/usb/hiddev0", O_RDONLY);
+	fd = open(device, O_RDONLY);
 
 	if (fd < 0) {
 		printf("Sorry, cannot open device for reading!\n");
@@ -350,6 +342,30 @@ int main (int argc, char *argv[])
 	/* Change the default behavior of read() to yeild hiddev_usage_ref instead */
 	if (ioctl(fd, HIDIOCSFLAG, &flag) != 0) {
 		printf("Oops, HIDIOCSFLAG failed!\n");
+		exit(1);
+	}
+	
+	return 0;	
+}
+
+int main (int argc, char *argv[]) 
+{
+	int bytes;
+	unsigned char *buffer = (unsigned char*)malloc(REPORT_INPUT_LEN);
+	unsigned char *o_buffer = (unsigned char*)malloc(REPORT_OUTPUT_LEN);
+	unsigned char *name_buffer = (unsigned char*)malloc(REPORT_NAME_LEN * 8);
+	unsigned char *rname_buffer = (unsigned char*)malloc(REPORT_NAME_LEN);
+	unsigned char *settings_buffer = (unsigned char*)malloc(REPORT_SETTINGS_LEN);
+	unsigned char *clean_name_buffer = (unsigned char*)malloc(CLEAN_NAME_LEN);
+	struct hiddev_devinfo dinfo;
+	struct hiddev_string_descriptor hStr;
+	u_int32_t version;
+	char **device_names;
+	device_names = malloc(181 * sizeof(char*));
+
+	/* Open our device */
+	if (aq5_open("/dev/usb/hiddev0") != 0) {
+		printf("Failed to open device. Exiting...\n");
 		exit(1);
 	}
 
@@ -425,7 +441,6 @@ int main (int argc, char *argv[])
 			printf("Here is the report 9 before sending:\n");
 			debug_buffer_hex(rname_buffer, REPORT_NAME_LEN); */
 			hiddev_set_report(fd, HID_REPORT_TYPE_OUTPUT, 0x9, rname_buffer);
-			/* usleep(2); */
 	
 			printf("\n\n** getting the 8x 0xC reports:\n");
 			interruptRead(fd, 0xff000001, name_buffer, REPORT_NAME_LEN * 8);
@@ -470,11 +485,11 @@ int main (int argc, char *argv[])
 		for (int j=0; j<181; j++) {
 			printf("%d:%s (%d bytes)\n", j, device_names[j], (int)strlen(device_names[j]));
 		}
-		/* for (int i=0; i<8; i++) {
-			printf("\n%d:\n", i+1); */
-		/*	showReport(fd, HID_REPORT_TYPE_INPUT, 0xC, name_buffer); */
-		/*	interruptRead(fd, 0xff000001, REPORT_NAME_LEN);
-		} */
+
+		printf("\nPrinting just the sensor names...\n");
+		for (int j=name_position[NAME_SENSOR].address; j<(name_position[NAME_SENSOR].address + name_position[NAME_SENSOR].count); j++) {
+			printf("%d:%s (%d bytes)\n", j, device_names[j], (int)strlen(device_names[j]));
+		}
 
 		return 0;
 
@@ -800,14 +815,6 @@ static void showReport(int fd, unsigned report_type, int report_id, unsigned cha
 				/* fetch the value from report */
 				ioctl(fd, HIDIOCGUSAGE, &uref);
 
-				/*
- 				printf(" >> usage_index=%u usage_code=0x%X value=%d\n",
-				uref.usage_index,
-				uref.usage_code,
-				uref.value);
-				*/
-				/* printf("%d\n",uref.value); */
-				
 				if (((j) % 16 == 0 )) printf("%08X  ", j);
 				printf("%02X ", uref.value);
 				if((j+1) % 16 == 0 ) printf( "\n" );
@@ -824,11 +831,9 @@ static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
 	int i = 0;
 	int j = 0;
 	int wrong_reports = 0;
-	int flag = HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT;
 
 	while(read(fd, &uref, sizeof(struct hiddev_usage_ref)) > 0) {
 		if (uref.report_id == 0xc) {
-			/*if (uref.field_index == HID_FIELD_INDEX_NONE) { */
 				printf("A new report is available. Fetching...\n");
 				printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
 				if (uref.usage_index != 0) {
@@ -837,38 +842,21 @@ static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
 					
 					/* Open our device */
 					printf("Reopening the device.\n");
-					fd = open("/dev/usb/hiddev0", O_RDONLY);
-					if (fd < 0) {
-						printf("Sorry, cannot open device for reading!\n");
-						exit(1);
-					}
-					/* Change the default behavior of read() to yeild hiddev_usage_ref instead */
-					if (ioctl(fd, HIDIOCSFLAG, &flag) != 0) {
-						printf("Oops, HIDIOCSFLAG failed!\n");
+					if (aq5_open("/dev/usb/hiddev0") != 0) {
+						printf("Failed to open device. Exiting...\n");
 						exit(1);
 					}
 
 					/* Initing all feature and input reports */
 					printf("Initing all input and feature reports.\n");
-					if (ioctl(fd, HIDIOCINITREPORT, 0) < 0)
+					if (ioctl(fd, HIDIOCINITREPORT, 0) < 0) {
 						printf("Failed to init reports!\n");
-
-					/* fsync(fd); */
-					/* for (int a=0; a<9; a++) {
-						showReport(fd, HID_REPORT_TYPE_INPUT, 0xC, NULL);
-						usleep(10000);
 					}
-					*/
 					break;
 				}
 				/* Read the whole report in quickly */
-				/* read(fd, &muref, sizeof(struct hiddev_usage_ref)*523); */
 				if (read(fd, &muref, sizeof(struct hiddev_usage_ref) * 523) > 0) { 
 					for (j = 0; j<523; j++) {
-						/* uref.field_index = 0;
-						uref.usage_index = j;
-						ioctl(fd, HIDIOCGUCODE, &uref);
-						ioctl(fd, HIDIOCGUSAGE, &uref); */
 						if (muref[j].report_id != 0xc) {
 							printf("We got something other than report 0xC. Breaking and starting over\n");
 							i--;
@@ -887,17 +875,6 @@ static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
 					printf("Epic read() failure!\n");
 					break;
 				}
-					
-			/* } */
-
-			/*	
-			printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
-			buffer[i] = uref.value;
-			if (i == (len - 1)) {
-				break;
-			}
-			i++;
-			*/
 		} else {
 			/* printf("skipping report %02X\n", uref.report_id); */
 			if (wrong_reports > 659 ) {
@@ -907,27 +884,4 @@ static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len)
 			wrong_reports++;
 		}
 	}
-
-	/*
-	struct hiddev_event ev;
-	int i = 0;
-	while(read(fd, &ev, sizeof(struct hiddev_event)) == sizeof(struct hiddev_event)) {
-
-	*/
-		/* printf("EV: PARAM %x : %02X\n", ev[i].hid, ev[i].value); */
-	/*	if (hid != ev.hid) {
-			printf("Oops! We were expecting hid %x and received %x instead!\n", hid, ev.hid);
-
-		}
-		buffer[i] = ev.value;
-
-		if (((i) % 16 == 0 )) printf("%08X  ", i);
-		printf("%02X ", ev.value);
-		if((i+1) % 16 == 0 ) printf( "\n" );
-		if (i == (len - 1)) {
-			break;
-		}
-		i++;
-	}
-	*/
 }
