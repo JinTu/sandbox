@@ -196,7 +196,8 @@ c0 (end collection)
 
 
 #define REPORT	11
-/* #define REPORT_INPUT_LEN	2247 */
+#define REPORT_DATA_LEN		658
+/* #define REPORT_INPUT_LEN	2428 */
 #define REPORT_INPUT_LEN	32768
 #define REPORT_OUTPUT_LEN	16
 #define REPORT_NAME_LEN		523
@@ -393,8 +394,10 @@ int main (int argc, char *argv[])
 		/* printf("\n*** OUTPUT:\n"); showReports(fd, HID_REPORT_TYPE_OUTPUT); */
 
 		/* Method 2 (Doesn't work on my 2.6 system) */
-		/*
-		bytes = hiddev_get_feature_report(fd, 0xB, buffer, REPORT_INPUT_LEN);
+		
+		/* bytes = hiddev_get_feature_report(fd, HID_REPORT_TYPE_FEATURE, 0xB, buffer, REPORT_SETTINGS_LEN);*/
+		/* Interestingly only input reports seem to work with HIDIOCGUSAGES */
+		bytes = hiddev_get_feature_report(fd, HID_REPORT_TYPE_INPUT, 0x1, buffer, REPORT_DATA_LEN);
         
 		if (bytes <= 0)
 		{
@@ -402,10 +405,10 @@ int main (int argc, char *argv[])
 			printf("Oops, this report provided no data!\n");
 		} else {
 			printf("Success running hiddev_get_feature_report!\n");
-			debug_buffer_hex(buffer, REPORT_INPUT_LEN);
+			debug_buffer_hex(buffer, REPORT_SETTINGS_LEN);
 		}	
-		return 0;	
-		*/
+		/* return 0; */
+		
 
 		/* Lets set some values in the buffer */
 		for (int i=0; i<REPORT_OUTPUT_LEN; i+=2) {
@@ -443,8 +446,8 @@ int main (int argc, char *argv[])
 			hiddev_set_report(fd, HID_REPORT_TYPE_OUTPUT, 0x9, rname_buffer);
 	
 			printf("\n\n** getting the 8x 0xC reports:\n");
-			/* interruptRead(fd, 0xff000001, name_buffer, REPORT_NAME_LEN * 8); */
 			interruptRead(fd, 0xc, name_buffer, 523, 8);
+
 			if (check_and_strip_name_report_watermarks(name_buffer, clean_name_buffer) == 0) {
 				printf("watermarks match!\n");
 				for (int j=0; j<CLEAN_NAME_LEN; j++) {
@@ -595,15 +598,15 @@ static void hiddev_set_report(int fd, unsigned report_type, int report_id, unsig
 	printf("HIDIOCSREPORT\n");
 }
 
-int hiddev_get_feature_report(int fd, int report_id, unsigned char *buffer, int length)
+int hiddev_get_feature_report(int fd, unsigned report_type, int report_id, unsigned char *buffer, int length)
 {
 	struct hiddev_report_info rinfo;
 	struct hiddev_field_info finfo;
   	struct hiddev_usage_ref_multi ref_multi_i;
-	struct hiddev_usage_ref uref;
+	/* struct hiddev_usage_ref uref; */
 	int ret, report_length, i;
 
-	finfo.report_type = HID_REPORT_TYPE_FEATURE;
+	finfo.report_type = report_type;
 	finfo.report_id = report_id;
 	finfo.field_index = 0;
 
@@ -627,11 +630,11 @@ int hiddev_get_feature_report(int fd, int report_id, unsigned char *buffer, int 
 	}
 
 
-	rinfo.report_type = HID_REPORT_TYPE_FEATURE;
+	rinfo.report_type = report_type;
 	rinfo.report_id = report_id;
 	rinfo.num_fields = 1;
 
-	ref_multi_i.uref.report_type = HID_REPORT_TYPE_FEATURE;
+	ref_multi_i.uref.report_type = report_type;
 	ref_multi_i.uref.report_id = report_id;
 	ref_multi_i.uref.field_index = 0;
 	ref_multi_i.uref.usage_index = 0; /* byte index??? */
@@ -830,12 +833,16 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 {
 	struct hiddev_usage_ref uref;
 	struct hiddev_usage_ref muref[len];
+	struct hiddev_report_info rinfo;
+	struct hiddev_usage_ref_multi ref_multi_i;
 	int i = 0;
 	int j = 0;
 	int wrong_reports = 0;
+	int ret;
 
 	while(read(fd, &uref, sizeof(struct hiddev_usage_ref)) > 0) {
 		if (uref.report_id == report_id) {
+			if (uref.field_index == HID_FIELD_INDEX_NONE) {
 				printf("A new report is available. Fetching...\n");
 				printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
 				if (uref.usage_index != 0) {
@@ -857,14 +864,34 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 					break;
 				}
 				/* Read the whole report in quickly */
-				if (read(fd, &muref, sizeof(struct hiddev_usage_ref) * len) > 0) { 
+				rinfo.report_type = HID_REPORT_TYPE_INPUT;
+				rinfo.report_id = report_id;
+				rinfo.num_fields = 1;
+				/* request feature report */
+			        ret = ioctl(fd, HIDIOCGREPORT, &rinfo);
+        
+				if (ret != 0) {
+					fprintf(stderr, "HIDIOCGREPORT (%s)\n", strerror(errno));
+					return 0;
+				}
+
+
+				ref_multi_i.uref.report_type = HID_REPORT_TYPE_INPUT;
+				ref_multi_i.uref.report_id = report_id;
+				ref_multi_i.uref.field_index = 0;
+				ref_multi_i.uref.usage_index = 0; /* byte index??? */
+				ref_multi_i.num_values = len;
+
+			        /* multibyte transfer to local buffer */
+				ret = ioctl(fd, HIDIOCGUSAGES, &ref_multi_i);
+
+				if (ret != 0) {
+					fprintf(stderr, "HIDIOCGUSAGES (%s)\n", strerror(errno));
+					return 0;
+				} else {
 					for (j = 0; j<len; j++) {
-						if (muref[j].report_id != report_id) {
-							printf("We got something other than report 0xC. Breaking and starting over\n");
-							i--;
-							break;
-						}
-						buffer[(i*len)+j] = muref[muref[j].usage_index].value;
+						/* buffer[(i*len)+j] = muref[muref[j].usage_index].value; */
+						buffer[(i*len)+j] = ref_multi_i.values[j];
 						/* printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d, j=%d, arrayindex=%d\n", muref[j].report_type, muref[j].report_id, muref[j].field_index, muref[j].usage_index, muref[j].usage_code, muref[j].value, i, j, (i*523)+j); */
 					}
 
@@ -873,13 +900,14 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 						break;
 					}
 					i++;
-				} else {
+				/* } else {
 					printf("Epic read() failure!\n");
-					break;
+					break; */
 				}
+			}
 		} else {
 			/* printf("skipping report %02X\n", uref.report_id); */
-			if (wrong_reports > 659 ) {
+			if (wrong_reports > 700 ) {
 				printf("Too many wrong reports read (%d)! Last array index was %d. Bailing out.\n", wrong_reports, (i*len)+j);
 				break;
 			}

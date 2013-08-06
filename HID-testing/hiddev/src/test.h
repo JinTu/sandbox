@@ -90,7 +90,7 @@ name_position_t name_position[] = {
  */
 
 static void hiddev_set_report(int fd, unsigned report_type, int report_id, unsigned char *buffer);
-int hiddev_get_feature_report(int fd, int report_id, unsigned char *buffer, int length);
+int hiddev_get_feature_report(int fd, unsigned report_type, int report_id, unsigned char *buffer, int length);
 
 /* inserts the uint16 into the offset provided in the char array */
 static void set_uint16(unsigned char *buffer, short offset, uint16_t val);
