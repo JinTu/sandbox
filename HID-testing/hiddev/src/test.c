@@ -405,7 +405,7 @@ int main (int argc, char *argv[])
 			printf("Oops, this report provided no data!\n");
 		} else {
 			printf("Success running hiddev_get_feature_report!\n");
-			debug_buffer_hex(buffer, REPORT_SETTINGS_LEN);
+			debug_buffer_hex(buffer, REPORT_DATA_LEN);
 		}	
 		/* return 0; */
 		
@@ -423,7 +423,7 @@ int main (int argc, char *argv[])
 		/* usleep (1000); */
 
 		/* Send report 0x09, then read back report 0x0c 8x for all the device names */
-		for (int i=0; i<31; i++) {
+		for (int i=0; i<10; i++) {
 			printf("Attempt %d\n", i);
 			printf("Sending the following request in report 0x9:\n");
 			/* Define the report 9 request */
@@ -475,8 +475,8 @@ int main (int argc, char *argv[])
 				}
 				break;
 			} else {
-				if (i == 30) {
-					printf("Doh! Failed for the %dth time, bailing out\n", i);
+				if (i == 9) {
+					printf("Doh! Failed for the %dth time, bailing out\n", i + 1);
 					return -1;
 				} else {
 					printf("Trying again...\n");
@@ -625,7 +625,7 @@ int hiddev_get_feature_report(int fd, unsigned report_type, int report_id, unsig
 			fprintf(stderr, "Bailing out, report length = %d\n",report_length);
 			return 0;
 		} else {
-			fprintf(stderr, "Continuing, report length %d - buffer length %d\n", report_length, length);
+			printf("Continuing, report length %d - buffer length %d\n", report_length, length);
 		}
 	}
 
@@ -832,49 +832,26 @@ static void showReport(int fd, unsigned report_type, int report_id, unsigned cha
 static void interruptRead(int fd, int report_id, unsigned char *buffer, int len, int count)
 {
 	struct hiddev_usage_ref uref;
-	struct hiddev_usage_ref muref[len];
 	struct hiddev_report_info rinfo;
 	struct hiddev_usage_ref_multi ref_multi_i;
 	int i = 0;
 	int j = 0;
 	int wrong_reports = 0;
-	int ret;
 
 	while(read(fd, &uref, sizeof(struct hiddev_usage_ref)) > 0) {
 		if (uref.report_id == report_id) {
 			if (uref.field_index == HID_FIELD_INDEX_NONE) {
 				printf("A new report is available. Fetching...\n");
 				printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
-				if (uref.usage_index != 0) {
-					printf("Something is messed up with hiddev right now (uref.usage_index != 0). Attempting reset...\n");
-					close(fd);
-					
-					/* Open our device */
-					printf("Reopening the device.\n");
-					if (aq5_open("/dev/usb/hiddev0") != 0) {
-						printf("Failed to open device. Exiting...\n");
-						exit(1);
-					}
-
-					/* Initing all feature and input reports */
-					printf("Initing all input and feature reports.\n");
-					if (ioctl(fd, HIDIOCINITREPORT, 0) < 0) {
-						printf("Failed to init reports!\n");
-					}
-					break;
-				}
 				/* Read the whole report in quickly */
 				rinfo.report_type = HID_REPORT_TYPE_INPUT;
 				rinfo.report_id = report_id;
 				rinfo.num_fields = 1;
-				/* request feature report */
-			        ret = ioctl(fd, HIDIOCGREPORT, &rinfo);
-        
-				if (ret != 0) {
+				/* request report */
+				if (ioctl(fd, HIDIOCGREPORT, &rinfo) != 0) {
 					fprintf(stderr, "HIDIOCGREPORT (%s)\n", strerror(errno));
-					return 0;
+					exit(1);
 				}
-
 
 				ref_multi_i.uref.report_type = HID_REPORT_TYPE_INPUT;
 				ref_multi_i.uref.report_id = report_id;
@@ -882,32 +859,25 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 				ref_multi_i.uref.usage_index = 0; /* byte index??? */
 				ref_multi_i.num_values = len;
 
-			        /* multibyte transfer to local buffer */
-				ret = ioctl(fd, HIDIOCGUSAGES, &ref_multi_i);
-
-				if (ret != 0) {
+				if (ioctl(fd, HIDIOCGUSAGES, &ref_multi_i) != 0) {
 					fprintf(stderr, "HIDIOCGUSAGES (%s)\n", strerror(errno));
-					return 0;
+					exit(1);
 				} else {
 					for (j = 0; j<len; j++) {
-						/* buffer[(i*len)+j] = muref[muref[j].usage_index].value; */
 						buffer[(i*len)+j] = ref_multi_i.values[j];
 						/* printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d, j=%d, arrayindex=%d\n", muref[j].report_type, muref[j].report_id, muref[j].field_index, muref[j].usage_index, muref[j].usage_code, muref[j].value, i, j, (i*523)+j); */
 					}
 
 					if (i == (count - 1)) {
-						printf("Last array index was %d\n", (i*len)+j);
+						printf("Last array index was %d, number of wrong reports was %d\n", (i*len)+j, wrong_reports);
 						break;
 					}
 					i++;
-				/* } else {
-					printf("Epic read() failure!\n");
-					break; */
 				}
 			}
 		} else {
-			/* printf("skipping report %02X\n", uref.report_id); */
-			if (wrong_reports > 700 ) {
+			/* printf("skipping report %02X, usage_index %02X\n", uref.report_id, uref.usage_index); */
+			if (wrong_reports > (659+4)) {
 				printf("Too many wrong reports read (%d)! Last array index was %d. Bailing out.\n", wrong_reports, (i*len)+j);
 				break;
 			}
