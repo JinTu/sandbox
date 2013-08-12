@@ -324,7 +324,7 @@ inline int check_and_strip_name_report_watermarks(unsigned char *dirtybuffer, un
 /* Open the device */
 inline int aq5_open(char *device)
 {
-	int flag = HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT;
+	/* int flag = HIDDEV_FLAG_UREF | HIDDEV_FLAG_REPORT; */
 
 	/* Only open the device if we need to */
 	if (fcntl(fd, F_GETFL) != -1) {
@@ -341,10 +341,10 @@ inline int aq5_open(char *device)
 	}
 
 	/* Change the default behavior of read() to yeild hiddev_usage_ref instead */
-	if (ioctl(fd, HIDIOCSFLAG, &flag) != 0) {
+	/* if (ioctl(fd, HIDIOCSFLAG, &flag) != 0) {
 		printf("Oops, HIDIOCSFLAG failed!\n");
 		exit(1);
-	}
+	} */
 	
 	return 0;	
 }
@@ -423,7 +423,7 @@ int main (int argc, char *argv[])
 		/* usleep (1000); */
 
 		/* Send report 0x09, then read back report 0x0c 8x for all the device names */
-		for (int i=0; i<10; i++) {
+		for (int i=0; i<1; i++) {
 			printf("Attempt %d\n", i);
 			printf("Sending the following request in report 0x9:\n");
 			/* Define the report 9 request */
@@ -836,52 +836,65 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 	struct hiddev_usage_ref_multi ref_multi_i;
 	int i = 0;
 	int j = 0;
+	int c = 0;
 	int wrong_reports = 0;
+	int page_position_offset = 3;
+	int report_pages[] = {
+		0xc0,
+		0xc2,
+		0xc4,
+		0xc6,
+		0xc8,
+		0xca,
+		0xcc,
+		0xce
+	}; 
+	struct timeval timeout;
 
-	while(read(fd, &uref, sizeof(struct hiddev_usage_ref)) > 0) {
-		if (uref.report_id == report_id) {
-			if (uref.field_index == HID_FIELD_INDEX_NONE) {
-				printf("A new report is available. Fetching...\n");
-				printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d\n", uref.report_type, uref.report_id, uref.field_index, uref.usage_index, uref.usage_code, uref.value, i);
-				/* Read the whole report in quickly */
-				rinfo.report_type = HID_REPORT_TYPE_INPUT;
-				rinfo.report_id = report_id;
-				rinfo.num_fields = 1;
-				/* request report */
-				if (ioctl(fd, HIDIOCGREPORT, &rinfo) != 0) {
-					fprintf(stderr, "HIDIOCGREPORT (%s)\n", strerror(errno));
-					exit(1);
-				}
+	/* Initialize the timeout data structure. */
+	timeout.tv_sec = 0; /* 5 seconds */
+	timeout.tv_usec = 12000;	
 
-				ref_multi_i.uref.report_type = HID_REPORT_TYPE_INPUT;
-				ref_multi_i.uref.report_id = report_id;
-				ref_multi_i.uref.field_index = 0;
-				ref_multi_i.uref.usage_index = 0; /* byte index??? */
-				ref_multi_i.num_values = len;
+	for (c=0; c<500; c++) {
+		/* Wait for a short while so we don't thrash and hang */
+		select (0, NULL, NULL, NULL, &timeout);
+		/* Read the whole report in quickly */
+		rinfo.report_type = HID_REPORT_TYPE_INPUT;
+		rinfo.report_id = report_id;
+		rinfo.num_fields = 1;
+		/* request report */
+		if (ioctl(fd, HIDIOCGREPORT, &rinfo) != 0) {
+			fprintf(stderr, "HIDIOCGREPORT (%s)\n", strerror(errno));
+			exit(1);
+		}
 
-				if (ioctl(fd, HIDIOCGUSAGES, &ref_multi_i) != 0) {
-					fprintf(stderr, "HIDIOCGUSAGES (%s)\n", strerror(errno));
-					exit(1);
-				} else {
-					for (j = 0; j<len; j++) {
-						buffer[(i*len)+j] = ref_multi_i.values[j];
-						/* printf("uref: report_type=%u, report_id=%02X, field_index=%u, usage_index=%u, usage_code=%u, value=%02X, i=%d, j=%d, arrayindex=%d\n", muref[j].report_type, muref[j].report_id, muref[j].field_index, muref[j].usage_index, muref[j].usage_code, muref[j].value, i, j, (i*523)+j); */
-					}
+		ref_multi_i.uref.report_type = HID_REPORT_TYPE_INPUT;
+		ref_multi_i.uref.report_id = report_id;
+		ref_multi_i.uref.field_index = 0;
+		ref_multi_i.uref.usage_index = 0; /* byte index??? */
+		ref_multi_i.num_values = len;
 
-					if (i == (count - 1)) {
-						printf("Last array index was %d, number of wrong reports was %d\n", (i*len)+j, wrong_reports);
-						break;
-					}
-					i++;
-				}
-			}
+		if (ioctl(fd, HIDIOCGUSAGES, &ref_multi_i) != 0) {
+			fprintf(stderr, "HIDIOCGUSAGES (%s)\n", strerror(errno));
+			exit(1);
 		} else {
-			/* printf("skipping report %02X, usage_index %02X\n", uref.report_id, uref.usage_index); */
-			if (wrong_reports > (659+4)) {
-				printf("Too many wrong reports read (%d)! Last array index was %d. Bailing out.\n", wrong_reports, (i*len)+j);
-				break;
+			if (ref_multi_i.values[page_position_offset] == report_pages[i]) {
+				printf("Value at %d on page %d matches (%02X). Loop iteration %d\n", page_position_offset, i, ref_multi_i.values[page_position_offset], c);
+				for (j = 0; j<len; j++) {
+					buffer[(i*len)+j] = ref_multi_i.values[j];
+				}
+
+				if (i == (count - 1)) {
+					printf("Last array index was %d, number of wrong reports was %d\n", (i*len)+j, wrong_reports);
+					return;
+				}
+				i++;
+			} else {
+				/* printf("Oops, value at %d on page %d (%02X) doesn't match expected value (%02X). Loop iteration %d\n", page_position_offset, i, ref_multi_i.values[page_position_offset], report_pages[i], c); */
+				wrong_reports++;
 			}
-			wrong_reports++;
 		}
 	}
+	/* If we have gone this far it means we didn't get what we are looking for */
+	printf("Failed to find enough matching report pages after %d iterations!\n", c);
 }
