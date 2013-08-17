@@ -349,6 +349,7 @@ inline int aq5_open(char *device)
 	return 0;	
 }
 
+
 int main (int argc, char *argv[]) 
 {
 	int bytes;
@@ -475,7 +476,7 @@ int main (int argc, char *argv[])
 				}
 				break;
 			} else {
-				if (i == 9) {
+				if (i == 0) {
 					printf("Doh! Failed for the %dth time, bailing out\n", i + 1);
 					return -1;
 				} else {
@@ -828,7 +829,6 @@ static void showReport(int fd, unsigned report_type, int report_id, unsigned cha
 }
 
 /* Dumb read function for doing interrupt reads */
-/* static void interruptRead(int fd, unsigned hid, unsigned char *buffer, int len) */
 static void interruptRead(int fd, int report_id, unsigned char *buffer, int len, int count)
 {
 	struct hiddev_usage_ref uref;
@@ -849,15 +849,17 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 		0xcc,
 		0xce
 	}; 
-	struct timeval timeout;
 
 	/* Initialize the timeout data structure. */
-	timeout.tv_sec = 0; /* 5 seconds */
-	timeout.tv_usec = 12000;	
+	struct timespec req={0};
+	req.tv_sec = 0;
+	req.tv_nsec = 8000000L; /* 0.008 seconds */
 
-	for (c=0; c<500; c++) {
+	for (c=0; c<100; c++) {
 		/* Wait for a short while so we don't thrash and hang */
-		select (0, NULL, NULL, NULL, &timeout);
+		while((nanosleep(&req,&req) == -1) && (errno == EINTR))
+			continue;
+
 		/* Read the whole report in quickly */
 		rinfo.report_type = HID_REPORT_TYPE_INPUT;
 		rinfo.report_id = report_id;
