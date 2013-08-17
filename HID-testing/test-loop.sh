@@ -9,7 +9,7 @@ do
   echo "Iteration $i" >>test-output.txt
   hiddev/bin/test >>test-output.txt
   # We need to give the USB bus a little break or things can hang
-  #sleep 1
+  sleep 1
 done
 
 date2=$(date +"%s")

@@ -424,7 +424,7 @@ int main (int argc, char *argv[])
 		/* usleep (1000); */
 
 		/* Send report 0x09, then read back report 0x0c 8x for all the device names */
-		for (int i=0; i<1; i++) {
+		for (int i=0; i<3; i++) {
 			printf("Attempt %d\n", i);
 			printf("Sending the following request in report 0x9:\n");
 			/* Define the report 9 request */
@@ -476,7 +476,7 @@ int main (int argc, char *argv[])
 				}
 				break;
 			} else {
-				if (i == 0) {
+				if (i == 2) {
 					printf("Doh! Failed for the %dth time, bailing out\n", i + 1);
 					return -1;
 				} else {
@@ -855,7 +855,7 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 	req.tv_sec = 0;
 	req.tv_nsec = 8000000L; /* 0.008 seconds */
 
-	for (c=0; c<100; c++) {
+	for (c=0; c<50; c++) {
 		/* Wait for a short while so we don't thrash and hang */
 		while((nanosleep(&req,&req) == -1) && (errno == EINTR))
 			continue;
