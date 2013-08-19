@@ -853,7 +853,7 @@ static void interruptRead(int fd, int report_id, unsigned char *buffer, int len,
 	/* Initialize the timeout data structure. */
 	struct timespec req={0};
 	req.tv_sec = 0;
-	req.tv_nsec = 8000000L; /* 0.008 seconds */
+	req.tv_nsec = 7000000L; /* 0.007 seconds */
 
 	for (c=0; c<50; c++) {
 		/* Wait for a short while so we don't thrash and hang */
